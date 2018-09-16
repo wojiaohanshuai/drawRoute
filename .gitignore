@@ -16,7 +16,7 @@
 *.launch
 .settings/
 *.sublime-workspace
-.editorconfig'
+.editorconfig
 
 #github
 github
