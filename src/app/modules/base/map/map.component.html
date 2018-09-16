@@ -1,11 +1,44 @@
 <div class="content">
   <div class="left">
-    <button nz-button nzType="primary" (click)="addStart()"
-            [attr.disabled]="startPoint ? 'disabled' : null">添加起点</button>
-    <button nz-button nzType="primary" (click)="addEnd()"
-            [attr.disabled]="endPoint ? 'disabled' : null">添加终点</button>
-    <button nz-button nzType="dashed" (click)="createRoute()"
-            [attr.disabled]="route ? 'disabled' : null">生成路径</button>
+
+    <div>
+      <button nz-button nzType="primary" (click)="addStart()"
+              [attr.disabled]="startPoint ? 'disabled' : null">添加起点</button>
+      <nz-tag *ngIf="startPoint" [nzColor]="'green'">[ {{startPoint.lat.toFixed(2)}}, {{startPoint.lng.toFixed(2)}} ]</nz-tag>
+    </div>
+    <div>
+      <button nz-button nzType="primary" (click)="addEnd()"
+              [attr.disabled]="endPoint ? 'disabled' : null">添加终点</button>
+      <nz-tag *ngIf="endPoint" [nzColor]="'red'">[ {{endPoint.lat.toFixed(2)}}, {{endPoint.lng.toFixed(2)}} ]</nz-tag>
+    </div>
+    <div>
+      <button nz-button nzType="dashed" (click)="createRoute()"
+              [attr.disabled]="route ? 'disabled' : null">生成路径</button>
+
+
+      <nz-tooltip [nzTitle]="'反转路径'" [nzPlacement]="'right'">
+        <button nz-button nz-tooltip (click)="reverseRoute()">
+
+          <i class="anticon anticon-swap"></i>
+        </button>
+      </nz-tooltip>
+    </div>
+    <nz-table #nzTable [nzData]="arrRoute" [nzPageSize]="5" *ngIf="arrRoute.length !== 0">
+      <thead nz-thead>
+      <tr>
+        <th nz-th><span>距离</span></th>
+        <th nz-th><span>起点</span></th>
+        <th nz-th><span>终点</span></th>
+      </tr>
+      </thead>
+      <tbody nz-tbody>
+      <tr nz-tbody-tr class="tr-hover" *ngFor="let item of nzTable.data" (mouseenter)="trEnter(item)" (mouseleave)="trLeave(item)">
+        <td nz-td>{{(item.dis / 1000).toFixed(2)}} km</td>
+        <td nz-td>{{toString(item?.start)}}</td>
+        <td nz-td>{{toString(item?.end)}}</td>
+      </tr>
+      </tbody>
+    </nz-table>
   </div>
   <div class="right">
     <div id="map" class="map"></div>
