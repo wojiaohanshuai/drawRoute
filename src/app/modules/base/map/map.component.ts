@@ -1,5 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import {Component, ElementRef, OnInit} from '@angular/core';
 import {CommonService} from '../../../core/service/common.service';
+import {MapService} from './service/map.service';
+import { saveAs } from 'file-saver/FileSaver';
 declare var L:  any;
 
 @Component({
@@ -16,12 +18,18 @@ export class MapComponent implements OnInit {
   public startPoint: any = null;
   public endPoint: any = null;
   public route: any = null;
-  public trRoute: any = null;
+  public trRoute: any = null; // 表格中每一行表示路径的一段距离
 
   public arrRoute: Array<any> = [];
 
+  public selectedSign: any;
+  public SIGNS: Array<any> = this.mapService.signs; // 所有的标志
+  public signMarkerArray: Array<any> = [];
+
   constructor(
-    private commonService: CommonService
+    private commonService: CommonService,
+    private mapService: MapService,
+    public element: ElementRef
   ) { }
 
   ngOnInit() {
@@ -88,16 +96,44 @@ export class MapComponent implements OnInit {
     });
 
     this.map.on('draw:deleted', evt => {
-      this.startPoint = null;
-      this.endPoint = null;
-      this.arrRoute = [];
-      this.drawnItems.removeLayer(this.route);
+      const layers = evt.layers._layers;
+      let layer;
+      for (const i in layers) {
+        if (layers.hasOwnProperty(i)) {
+          layer = layers[i];
+        }
+      }
+
+      if (layer instanceof  L.Polyline) {
+        this.startPoint = null;
+        this.endPoint = null;
+        this.arrRoute = [];
+        this.drawnItems.removeLayer(this.route);
         this.route = null;
+
+        console.log(this.route);
+      } else if (layer instanceof L.Marker) {
+        this.removeSign(layer);
+      }
     });
 
     this.map.on('draw:edited', evt => {
       console.log(this.route);
-      this.createTable();
+
+      const layers = evt.layers._layers;
+      let layer;
+      for (const i in layers) {
+        if (layers.hasOwnProperty(i)) {
+          layer = layers[i];
+        }
+      }
+
+      if (layer instanceof  L.Polyline) {
+        this.createTable();
+      } else if (layer instanceof L.Marker) {
+        this.editSign(layer);
+      }
+
     });
   }
 
@@ -145,8 +181,8 @@ export class MapComponent implements OnInit {
       [this.endPoint.lat, this.endPoint.lng]
     ];
 
-    this.map.removeLayer(this.startMarker);
-    this.map.removeLayer(this.endMarker);
+    this.startMarker && this.map.removeLayer(this.startMarker);
+    this.endMarker && this.map.removeLayer(this.endMarker);
     this.route = L.polyline(latlngs, {color: 'red'});
 
     this.drawnItems.addLayer(this.route);
@@ -200,7 +236,7 @@ export class MapComponent implements OnInit {
 
     const latlngs = [];
     arrLatlng.forEach((item, index) => {
-        latlngs.push([item[1], item[0]]);
+      latlngs.push([item[1], item[0]]);
     });
     this.drawnItems.removeLayer(this.route);
     this.route = L.polyline(latlngs, {color: 'red'});
@@ -231,7 +267,6 @@ export class MapComponent implements OnInit {
    * 计算距离
    * */
   calcDistance(start: any, end: any): number {
-
     console.log('this.map.distance(start, end)', this.map.distance(start, end))
     return this.map.distance(start, end);
   }
@@ -248,6 +283,169 @@ export class MapComponent implements OnInit {
    * */
   toString(arr: Array<number>): string {
     return `[ ${arr[1]}, ${arr[0]} ]`;
+  }
+
+  /**
+   * 标志选择变化
+   * */
+  signChange(item: any): void {
+    this.map.on('click', this.addSign);
+  }
+
+  /**
+   * 移动sign marker
+   * */
+  editSign(layer): void {
+    const id = layer._leaflet_id ? layer._leaflet_id : null;
+    if (!id) {
+      throw new Error(`图层id为${id}`);
+      return;
+    }
+
+    this.signMarkerArray.some((item, index) => {
+      if (item._leaflet_id === id) {
+        item = layer;
+        return true;
+      }
+    });
+  }
+
+  /**
+   * 删除sign marker
+   * */
+  removeSign(layer): void {
+    const id = layer._leaflet_id ? layer._leaflet_id : null;
+    if (!id) {
+      throw new Error(`图层id为${id}`);
+      return;
+    }
+
+    this.signMarkerArray.some((item, index) => {
+      if (item._leaflet_id === id) {
+        this.signMarkerArray.splice(index, 1);
+        return true;
+      }
+    });
+  }
+
+  /**
+   * 添加sign marker
+   * */
+  addSign =  e => {
+    const latlng = e.latlng;
+    const icon = L.icon({
+      iconUrl: this.selectedSign.iconUrl,
+      iconSize: [50, 50],
+      iconAnchor: [22, 94],
+      popupAnchor: [-3, -76]
+    });
+    const signMarker = L.marker(latlng, {icon}).addTo(this.map);
+    signMarker.type = this.selectedSign.type;
+    this.signMarkerArray.push(signMarker);
+    console.log(signMarker);
+    this.map.off('click', this.addSign);
+  }
+
+  /**
+   * 读取数据
+   * */
+  read = (): void => {
+    this.drawnItems.clearLayers();
+    this.signMarkerArray.forEach(item => {
+      this.map.removeLayer(item);
+    });
+    this.signMarkerArray = [];
+
+    const input = this.element.nativeElement.querySelector('#upload-input');
+    const  file = input.files[0];
+    const reader = new FileReader();
+    const vm = this;
+    reader.onload = function () {
+      const data = JSON.parse(this.result);
+      console.log(data);
+      if (data.polyline) {
+        const arrLatlng: Array<any> = data.polyline.geometry.coordinates;
+        const start = arrLatlng[0];
+        vm.startPoint = L.latLng(start[1], start[0]);
+        const end = arrLatlng[arrLatlng.length - 1];
+        vm.endPoint = L.latLng(end[1], end[0]);
+        vm.createAndRestorePolyline(data.polyline);
+      }
+      if (data.marker) {
+        vm.createAndAddSineMarker(data.marker, vm);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  /**
+   * 创建并添加到地图上polyline
+   * */
+  createAndRestorePolyline(geojson: any): void {
+    console.log(geojson);
+    const arrLatlng: Array<any> = geojson.geometry.coordinates.reverse();
+
+    const latlngs = [];
+    arrLatlng.forEach((item, index) => {
+      latlngs.push([item[1], item[0]]);
+    });
+    this.drawnItems.removeLayer(this.route);
+    this.route = L.polyline(latlngs, {color: 'red'});
+    this.drawnItems.addLayer(this.route);
+
+    this.createTable();
+  }
+
+  /**
+   * 创建并添加到地图上marker
+   * */
+  createAndAddSineMarker(arr: Array<any>, context: any): void {
+    arr.forEach(item => {
+      const icon = L.icon({
+        iconUrl: context.getSignUrl(item.properties.type),
+        iconSize: [50, 50],
+        iconAnchor: [22, 94],
+        popupAnchor: [-3, -76]
+      });
+      const arrLatlng: Array<any> = item.geometry.coordinates;
+      const latlng = L.latLng(arrLatlng[1], arrLatlng[0]);
+      const signMarker = L.marker(latlng, {icon}).addTo(context.map);
+      context.signMarkerArray.push(signMarker);
+    });
+  }
+
+  /**
+   * 获取sign对用的图片url
+   * */
+  getSignUrl(type: string): string {
+    let url = '';
+    this.SIGNS.some(item => {
+      if (type === item.type) {
+        url = item.iconUrl;
+        return true;
+      }
+    });
+    return url;
+  }
+
+  /**
+   * 保存数据
+   */
+  save(): void {
+    const polyline = this.route ? this.route.toGeoJSON() : null;
+    console.log(polyline);
+
+    const marker = [];
+    this.signMarkerArray.forEach(item => {
+      const geojson = item.toGeoJSON();
+      geojson.properties.type = item.type;
+      marker.push(geojson);
+    });
+    console.log(marker);
+
+    const data = {polyline, marker};
+    const blob = new Blob([JSON.stringify(data)], { type: '' });
+    saveAs(blob, 'data.json');
   }
 }
 
