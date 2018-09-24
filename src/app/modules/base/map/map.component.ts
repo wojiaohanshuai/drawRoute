@@ -90,8 +90,9 @@ export class MapComponent implements OnInit {
     this.map.on('draw:deleted', evt => {
       this.startPoint = null;
       this.endPoint = null;
-      this.route = null;
       this.arrRoute = [];
+      this.drawnItems.removeLayer(this.route);
+        this.route = null;
     });
 
     this.map.on('draw:edited', evt => {
