@@ -32,12 +32,18 @@
         </button>
       </nz-tooltip>
     </div>
-    <nz-select style="width: 200px;" nzShowSearch nzAllowClear nzPlaceHolder="Select Sign"
-               [(ngModel)]="selectedSign" (ngModelChange)="signChange(item)">
-      <nz-option nzCustomContent [nzLabel]="item.name" [nzValue]="item" *ngFor="let item of SIGNS">
-        {{item.name}}
-      </nz-option>
-    </nz-select>
+    <div>
+      <nz-select style="width: 200px;" nzShowSearch nzAllowClear nzPlaceHolder="Select Sign"
+                 [(ngModel)]="selectedSign" (ngModelChange)="signChange(item)">
+        <nz-option nzCustomContent [nzLabel]="item.name" [nzValue]="item" *ngFor="let item of SIGNS">
+          {{item.name}}
+        </nz-option>
+      </nz-select>
+      <button style="margin-left: 12px; margin-bottom: 12px;" nz-button nzType="primary" (click)="clearSign()">
+        清空标记
+      </button>
+    </div>
+
     <nz-table #nzTable [nzData]="arrRoute" [nzPageSize]="5" *ngIf="arrRoute.length !== 0">
       <thead nz-thead>
       <tr>

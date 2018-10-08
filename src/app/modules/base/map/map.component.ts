@@ -12,6 +12,7 @@ declare var L:  any;
 export class MapComponent implements OnInit {
 
   public drawnItems: any = null; // 存放自定义画的图层
+  public signItems: any = null; // 存放sign marker的图层
   public startMarker: any = null;
   public endMarker: any = null;
   public map: any = null; // map对象
@@ -49,6 +50,7 @@ export class MapComponent implements OnInit {
     }).addTo(this.map);
 
     this.drawnItems = L.featureGroup().addTo(this.map);
+    this.signItems = L.featureGroup().addTo(this.map);
 
     console.log('this.drawnItems', this.drawnItems);
   }
@@ -245,7 +247,10 @@ export class MapComponent implements OnInit {
     this.createTable();
   }
 
-  trEnter(item) {
+  /**
+   * 表格行鼠标进入
+   * */
+  trEnter(item): void {
     const start = item.start;
     const end = item.end;
 
@@ -259,7 +264,10 @@ export class MapComponent implements OnInit {
     this.map.addLayer(this.trRoute);
   }
 
-  trLeave() {
+  /**
+   * 表格行鼠标离开
+   * */
+  trLeave(): void {
     this.map.removeLayer(this.trRoute);
   }
 
@@ -339,11 +347,24 @@ export class MapComponent implements OnInit {
       iconAnchor: [22, 94],
       popupAnchor: [-3, -76]
     });
-    const signMarker = L.marker(latlng, {icon}).addTo(this.map);
+    const signMarker = L.marker(latlng, {icon}).addTo(this.signItems);
     signMarker.type = this.selectedSign.type;
     this.signMarkerArray.push(signMarker);
     console.log(signMarker);
     this.map.off('click', this.addSign);
+  }
+
+  /**
+   * 清空sign marker
+   * */
+  clearSign(): void {
+    const layers = this.signItems.getLayers();
+    if (layers.length <= 0) {
+      this.commonService.info('没有可清除的sign');
+      return;
+    }
+
+    this.signItems.clearLayers();
   }
 
   /**
